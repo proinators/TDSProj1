@@ -5,9 +5,11 @@ import subprocess
 import sqlite3
 import re
 import requests
+import httpx
 from datetime import datetime
 from fastapi import FastAPI, HTTPException, Query, Response
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import PlainTextResponse, JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 import functions
@@ -18,11 +20,18 @@ app = FastAPI(
     description=(
         "POST /run?task=<task description> executes a plain-English task. The agent parses the instruction, "
         "executes one or more internal steps (including taking help from an LLM), and produces the final output. "
-        "On success, it returns a 200 OK; if the task instruction is invalid, it returns a 400 Bad Request; "
-        "if the agent encounters an error, it returns a 500 Internal Server Error. "
         "GET /read?path=<file path> returns the content of the specified file as plain text, returning 200 OK on success "
-        "or 404 Not Found if the file does not exist."
+        "or 404 Not Found if the file does not exist.",
+        "Made by Pratyush Nair, 23f2002285"
     )
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["GET", "POST"],
+    allow_headers=["*"],
 )
 
 TOOLS = {
@@ -46,14 +55,19 @@ TOOLS = {
     "B10": functions.task_B10,
 }
 
+@app.post("/test")
+def ask(task: str):
+    result = llm_parser.run_task(task, True)
+    return result
+
 @app.post("/run")
 async def run_task(task: str = Query(..., description="Plain-English task description")):
     try:
         parsed = llm_parser.run_task(task)
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Task parsing error: {str(e)}")
-    tool_code = parsed.get("tool-name")
-    params = {k: v for k, v in parsed.items() if k != "tool-name"}
+    tool_code = parsed.get("name")
+    params = json.loads(parsed.get("arguments")) if isinstance(parsed.get("arguments"), str) else parsed.get("arguments")
     if tool_code not in TOOLS:
         raise HTTPException(status_code=400, detail="Tool not supported.")
     try:

@@ -6,3 +6,9 @@ pandas
 beautifulsoup4
 markdown
 Pillow
+python-dotenv
+httpx
+scipy
+python-dateutil
+openai
+faker
