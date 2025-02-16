@@ -303,17 +303,35 @@ def task_B7(params: dict):
     return "Image processed and saved"
 
 def task_B8(params: dict):
+    """
+    B8. Transcribe audio using OpenAI Whisper API
+    """
     input_path = params.get("input")
     output_path = params.get("output")
     ensure_data_path(input_path)
     ensure_data_path(output_path)
+    
+    headers = {
+        "Authorization": f"Bearer {AIPROXY_TOKEN}"
+    }
+    
     with open(input_path, 'rb') as audio_file:
-        # In a real scenario, audio_file would be sent to an external transcription service.
-        audio_data = audio_file.read()
-    transcription_text = f"Simulated transcription for {input_path}"
+        files = {
+            'file': ('audio.mp3', audio_file, 'audio/mpeg'),
+            'model': (None, 'whisper-1')
+        }
+        response = requests.post(
+            "http://aiproxy.sanand.workers.dev/openai/v1/audio/transcriptions",
+            headers=headers,
+            files=files
+        )
+        response.raise_for_status()
+        transcription = response.json()["text"]
+        
     with open(output_path, 'w') as f:
-        f.write(transcription_text)
-    return "Audio transcribed"
+        f.write(transcription)
+    
+    return "Audio transcribed successfully"
 
 def task_B9(params: dict):
     """
